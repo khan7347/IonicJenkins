@@ -16,14 +16,14 @@ pipeline {
 
         stage('IOS Build') {
             steps {
-                sh 'ionic cordova build ios --prod'
+                sh 'ionic capacitor build ios --prod'
                 
             }
         }
 
         stage('Android Build') {
             steps {
-                sh 'ionic cordova build android --prod'
+                sh 'ionic capacitor build android --prod'
                 
             }
         }
