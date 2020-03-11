@@ -42,7 +42,96 @@ jobs:
           path: /tmp/apk
           destination: apks
 
+  ios:
+    macos:
+      xcode: "9.3.0"
+    working_directory: ~/repo
+
+    # use a --login shell so our "set Ruby version" command gets picked up for later steps
+    shell: /bin/bash --login -o pipefail
+
+    steps:
+      - checkout
+      - run:
+          name: set Ruby version
+          command:  echo "ruby-2.4" > ~/.ruby-version
+
+      # - restore_cache:
+      #     key: yarn-v1-{{ checksum "yarn.lock" }}-{{ arch }}
+
+      # - restore_cache:
+      #     key: node-v1-{{ checksum "package.json" }}-{{ arch }}
+
+      # not using a workspace here as Node and Yarn versions
+      # differ between our macOS executor image and the Docker containers above
+      - run:
+          name: "Install ionic and cordova"
+          command: |
+            npm install -g ionic cordova
+      - run:
+          name: "Install npm packages"
+          command: |
+            npm install
+      - run:
+          name: "Add ios platform using ionic"
+          command: |
+            ionic cordova platform add ios --noresources
+            ionic config set -g telemetry true
+      # - save_cache:
+      #     key: yarn-v1-{{ checksum "yarn.lock" }}-{{ arch }}
+      #     paths:
+      #       - ~/.cache/yarn
+
+      # - save_cache:
+      #     key: node-v1-{{ checksum "package.json" }}-{{ arch }}
+      #     paths:
+      #       - node_modules
+
+      # - restore_cache:
+      #     key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
+
+      - run:
+          command: bundle install
+          #working_directory: ios
+
+      # - save_cache:
+      #     key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
+      #     paths:
+      #       - vendor/bundle
+
+      - run:
+          #command: fastlane build_debug
+          command: |
+            bundle exec fastlane build_debug
+            mkdir -p /tmp/ios
+            cp platforms/ios/build/device/ionicJenkins.ipa /tmp/ios
+          #working_directory: ios
+
+      - store_artifacts:
+          path: /tmp/ios
+          destination: ios
+      # - run:
+      #     name: "Upload to Diawi"
+      #     command: |
+      #       export APP_FILE_PATH=/tmp/ios/ionicJenkins.ipa
+      #       export PLATFORM=IOS
+      #       node ./.circleci/upload-to-diawi.js
+      # - run:
+      #     name: set up test results
+      #     working_directory: ios
+      #     when: always
+      #     command: |
+      #       mkdir -p test-results/fastlane test-results/xcode
+      #       mv fastlane/report.xml test-results/fastlane
+      #       mv fastlane/test_output/report.junit test-results/xcode/junit.xml
+      # - store_test_results:
+      #     path: ios/test-results
+
+      # - store_artifacts:
+      #     path: ios/test-results
+
 workflows:
   build_and_deploy:
     jobs:
+      - ios
       - android
