@@ -2,34 +2,30 @@ version: 2.1
 orbs:
   node: circleci/node@1.1.6
 jobs:
-  build-and-test:
+  android:
     executor:
       name: node/default
+    working_directory: ~/repo
     steps:
       - checkout
-      - node/with-cache:
-          steps:
-            - run:
-                name: Install ionic and cordova
-                command: npm install -g ionic cordova
-            - run:
-                name: Install npm packages
-                command: npm install
-            - run:
-                name: Install Cordova plugins and add android platform
-                command:
-                  ionic cordova platform add android --noresources
-                  ionic config set -g telemetry true
-            - run:
-                name: Generate apk
-                command:
-                  ionic cordova build android --verbose
-                  mkdir -p /tmp/apk
-                  cp -r platforms/android/app/build/outputs/apk/debug/app-debug.apk /tmp/apk
-            - store_artifacts:
-                path: /tmp/apk
-                destination: apks
+      - run: 
+          name: "Install gradle"
+          command:
+            wget https://services.gradle.org/distributions/gradle-4.0.2-bin.zip -P /tmp
+            sudo unzip -d /opt/gradle /tmp/gradle-*.zip
+            echo 'export GRADLE_HOME=/opt/gradle/gradle-4.0.2' >> $BASH_ENV
+            echo 'export PATH=$PATH:/opt/gradle/gradle-4.0.2/bin' >> $BASH_ENV
+            source $BASH_ENV
+      - run:
+          name: "Install ionic and cordova"
+          command:
+            sudo npm install -g ionic cordova
+      - run:
+          name: "Install npm packages"
+          command:
+            npm install
+
 workflows:
-    build-and-test:
-      jobs:
-        - build-and-test
+  build_and_deploy:
+    jobs:
+      - android
