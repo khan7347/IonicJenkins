@@ -8,19 +8,8 @@ jobs:
     steps:
       - checkout
       - node/with-cache:
-        steps:
-          - run: 
-              name: "Install gradle"
-              command: |
-                wget https://services.gradle.org/distributions/gradle-4.0.2-bin.zip -P /tmp
-                sudo unzip -d /opt/gradle /tmp/gradle-*.zip
-                echo 'export GRADLE_HOME=/opt/gradle/gradle-4.0.2' >> $BASH_ENV
-                echo 'export PATH=$PATH:/opt/gradle/gradle-4.0.2/bin' >> $BASH_ENV
-                source $BASH_ENV
-          - run:
-              name: "Install ionic and cordova"
-              command: |
-                sudo npm install -g ionic cordova yarn
+          steps:
+            - run: npm install
 workflows:
     build-and-test:
       jobs:
