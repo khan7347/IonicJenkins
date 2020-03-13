@@ -11,7 +11,7 @@ jobs:
       - run: 
           name: "Install gradle"
           command: |
-            wget https://services.gradle.org/distributions/gradle-5.2.1-bin.zip -P /tmp
+            sudo wget https://services.gradle.org/distributions/gradle-5.2.1-bin.zip -P /tmp
             unzip -d /opt/gradle /tmp/gradle-*.zip
             echo 'export GRADLE_HOME=/opt/gradle/gradle-5.2.1' >> $BASH_ENV
             echo 'export PATH=$PATH:/opt/gradle/gradle-5.2.1/bin' >> $BASH_ENV
@@ -19,7 +19,7 @@ jobs:
       - run: 
           name: "Install Android SDK"
           command: |
-            wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -P /tmp
+            sudo wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -P /tmp
             unzip /tmp/sdk-tools-linux-4333796.zip
             rm /tmp/  sdk-tools-linux-4333796.zip
             mkdir android-sdk
@@ -29,7 +29,7 @@ jobs:
             export PATH=$PATH:$ANDROID_HOME/platform-tools
       - run:
           name: "Install ionic and cordova"
-          command: npm install -g ionic cordova
+          command: sudo npm install -g ionic cordova
       - run:
           name: "Install npm packages"
           command: npm install
