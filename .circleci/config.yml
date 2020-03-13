@@ -11,22 +11,23 @@ jobs:
       - run: 
           name: "Install gradle"
           command: |
-            sudo wget https://services.gradle.org/distributions/gradle-5.2.1-bin.zip -P /tmp
-            unzip -d /opt/gradle /tmp/gradle-*.zip
+            wget https://services.gradle.org/distributions/gradle-5.2.1-bin.zip -P /tmp
+            sudo unzip -d /opt/gradle /tmp/gradle-*.zip
             echo 'export GRADLE_HOME=/opt/gradle/gradle-5.2.1' >> $BASH_ENV
             echo 'export PATH=$PATH:/opt/gradle/gradle-5.2.1/bin' >> $BASH_ENV
             source $BASH_ENV
+
       - run: 
-          name: "Install Android SDK"
-          command: |
-            sudo wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -P /tmp
-            unzip /tmp/sdk-tools-linux-4333796.zip
-            rm /tmp/  sdk-tools-linux-4333796.zip
-            mkdir android-sdk
-            mv tools android-sdk/tools
-            export ANDROID_HOME=$HOME/android-sdk
-            export PATH=$PATH:$ANDROID_HOME/tools/bin
-            export PATH=$PATH:$ANDROID_HOME/platform-tools
+        name: "Install Android SDK"
+        command: |
+          wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -P /tmp
+          sudo unzip /tmp/sdk-tools-linux-4333796.zip
+          rm /tmp/  sdk-tools-linux-4333796.zip
+          mkdir android-sdk
+          mv tools android-sdk/tools
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$PATH:$ANDROID_HOME/tools/bin
+          export PATH=$PATH:$ANDROID_HOME/platform-tools
       - run:
           name: "Install ionic and cordova"
           command: sudo npm install -g ionic cordova
@@ -46,7 +47,7 @@ jobs:
       - run:
           name: "Generate apk"
           command: |
-            ionic cordova build android --prod --verbose
+            ionic cordova build android --verbose
             mkdir -p /tmp/apk
             cp -r platforms/android/app/build/outputs/apk/debug/app-debug.apk /tmp/apk
       - store_artifacts:
