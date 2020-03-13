@@ -1,152 +1,46 @@
-version: 2.1
-orbs:
-  node: circleci/node@1.1.6
-jobs:
-  android:
-    executor:
-      name: node/default
-    working_directory: ~/repo
-    environment:
-      ANDROID_TARGET: android-23
-      ADB_INSTALL_TIMEOUT: 12
-      ANDROID_HOME: /usr/local/android-sdk-linux
-    steps:
-      - checkout
-      - run: 
-          name: "Install gradle"
-          command: |
-            wget https://services.gradle.org/distributions/gradle-5.2.1-bin.zip -P /tmp
-            sudo unzip -d /opt/gradle /tmp/gradle-*.zip
-            echo 'export GRADLE_HOME=/opt/gradle/gradle-5.2.1' >> $BASH_ENV
-            echo 'export PATH=$PATH:/opt/gradle/gradle-5.2.1/bin' >> $BASH_ENV
-            source $BASH_ENV
-      - run:
-          name: "Install ionic and cordova"
-          command: sudo npm install -g ionic cordova
-        
-      - run:
-          name: print ANDROID_HOME
-          command: |
-            echo ANDROID_HOME: ${ANDROID_HOME}
-      - run:
-          name: print PATH
-          command: |
-            echo PATH: ${PATH}
-      - run:
-          name: export
-          command: export PATH=${PATH}:$ANDROID_HOME/tools:${PATH}:$ANDROID_HOME:$ANDROID_HOME/platform-tools
-      - run:
-          name: "Install npm packages"
-          command: npm install
-      # - persist_to_workspace:
-      #     root: ~/repo
-      #     paths:
-      #       - node_modules
-      - run:
-          name: "Install Cordova plugins and add android platform"
-          command: |
-            ionic cordova platform add android --noresources
-            ionic config set -g telemetry true
-      # below code is for android
-      - run:
-          name: "Generate apk"
-          command: |
-            ionic cordova build android --verbose
-            mkdir -p /tmp/apk
-            cp -r platforms/android/app/build/outputs/apk/debug/app-debug.apk /tmp/apk
-      - store_artifacts:
-          path: /tmp/apk
-          destination: apks
-
-  ios:
-    macos:
-      xcode: "9.3.0"
-    working_directory: ~/repo
-
-    # use a --login shell so our "set Ruby version" command gets picked up for later steps
-    shell: /bin/bash --login -o pipefail
-
-    steps:
-      - checkout
-      - run:
-          name: set Ruby version
-          command:  echo "ruby-2.4" > ~/.ruby-version
-
-      # - restore_cache:
-      #     key: yarn-v1-{{ checksum "yarn.lock" }}-{{ arch }}
-
-      # - restore_cache:
-      #     key: node-v1-{{ checksum "package.json" }}-{{ arch }}
-
-      # not using a workspace here as Node and Yarn versions
-      # differ between our macOS executor image and the Docker containers above
-      - run:
-          name: "Install ionic and cordova"
-          command: |
-            npm install -g ionic cordova
-      - run:
-          name: "Install npm packages"
-          command: |
-            npm install
-      - run:
-          name: "Add ios platform using ionic"
-          command: |
-            ionic cordova platform add ios --noresources
-            ionic config set -g telemetry true
-      # - save_cache:
-      #     key: yarn-v1-{{ checksum "yarn.lock" }}-{{ arch }}
-      #     paths:
-      #       - ~/.cache/yarn
-
-      # - save_cache:
-      #     key: node-v1-{{ checksum "package.json" }}-{{ arch }}
-      #     paths:
-      #       - node_modules
-
-      # - restore_cache:
-      #     key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-
-      - run:
-          command: bundle install
-          #working_directory: ios
-
-      # - save_cache:
-      #     key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-      #     paths:
-      #       - vendor/bundle
-
-      - run:
-          #command: fastlane build_debug
-          command: |
-            bundle exec fastlane build_debug
-            mkdir -p /tmp/ios
-            cp platforms/ios/build/device/ionicJenkins.ipa /tmp/ios
-          #working_directory: ios
-
-      - store_artifacts:
-          path: /tmp/ios
-          destination: ios
-      # - run:
-      #     name: "Upload to Diawi"
-      #     command: |
-      #       export APP_FILE_PATH=/tmp/ios/ionicJenkins.ipa
-      #       export PLATFORM=IOS
-      #       node ./.circleci/upload-to-diawi.js
-      # - run:
-      #     name: set up test results
-      #     working_directory: ios
-      #     when: always
-      #     command: |
-      #       mkdir -p test-results/fastlane test-results/xcode
-      #       mv fastlane/report.xml test-results/fastlane
-      #       mv fastlane/test_output/report.junit test-results/xcode/junit.xml
-      # - store_test_results:
-      #     path: ios/test-results
-
-      # - store_artifacts:
-      #     path: ios/test-results
+version: 2
+  jobs:
+    build:
+      docker:
+        - image: circleci/android:api-28-node
+      working_directory: ~/repo
+      environment:
+        JVM_OPTS: -Xmx3200m
+      steps:
+        - checkout
+        - run: 
+            name: "Install gradle"
+            command: |
+              wget https://services.gradle.org/distributions/gradle-4.0.2-bin.zip -P /tmp
+              sudo unzip -d /opt/gradle /tmp/gradle-*.zip
+              echo 'export GRADLE_HOME=/opt/gradle/gradle-4.0.2' >> $BASH_ENV
+              echo 'export PATH=$PATH:/opt/gradle/gradle-4.0.2/bin' >> $BASH_ENV
+              source $BASH_ENV
+        - run:
+            name: "Install ionic and cordova"
+            command: |
+              sudo npm install -g ionic cordova yarn
+        - run:
+            name: "Install npm packages"
+            command: |
+              yarn install
+        - run:
+            name: "Install Cordova plugins and add android platform"
+            command: |
+              ionic cordova platform add android --noresources
+              ionic config set -g telemetry true
+        - run:
+            name: "Generate apk"
+            command: |
+              ionic cordova build android --verbose
+              mkdir -p /tmp/apk
+              cp -r platforms/android/app/build/outputs/apk/debug/app-debug.apk /tmp/apk
+        - store_artifacts:
+            path: /tmp/apk
+            destination: apks
 
 workflows:
+  version: 2
   build_and_deploy:
     jobs:
-      - android
+      - build
