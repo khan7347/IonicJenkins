@@ -1,136 +1,336 @@
 version: 2.1
+
+description: |
+  Build and publish hybrid Apps based on Ionic for iOS / Android
+  Repository: https://github.com/okode/orbs
+
+cache-key-gradle: &cache-key-gradle
+  key: cache-gradle-{{ .Environment.CIRCLE_JOB }}-{{ .Environment.CIRCLE_BRANCH }}-{{ checksum "package-lock.json" }}
+
+cache-key-cocoapods: &cache-key-cocoapods
+  key: cache-cocoapods-{{ .Environment.CIRCLE_JOB }}-{{ checksum "<< parameters.cocoapods-lock-path >>" }}
+
 orbs:
-  node: circleci/node@1.1.6
+  common: okode/common@volatile
+
 jobs:
-  android:
-    executor:
-      name: node/default
-    working_directory: ~/repo
+  test:
+    parameters:
+      skip-tests:
+        type: boolean
+        default: false
+      skip-lint:
+        type: boolean
+        default: false
+      skip-sonar:
+        type: boolean
+        default: false
+      skip-e2e:
+        type: boolean
+        default: false
+      persist-results:
+        type: boolean
+        default: false
+      node-version:
+        type: string
+        default: "12"
+      custom-npm-login:
+        type: boolean
+        default: false
+      build-params:
+        type: string
+        default: ""
+    docker:
+      - image: circleci/openjdk:8-node-browsers
     steps:
       - checkout
-      - run: 
-          name: "Install gradle"
-          command: |
-            wget https://services.gradle.org/distributions/gradle-5.2.1-bin.zip -P /tmp
-            sudo unzip -d /opt/gradle /tmp/gradle-*.zip
-            echo 'export GRADLE_HOME=/opt/gradle/gradle-5.2.1' >> $BASH_ENV
-            echo 'export PATH=$PATH:/opt/gradle/gradle-5.2.1/bin' >> $BASH_ENV
-            source $BASH_ENV
+      - common/node-upgrade:
+          version: << parameters.node-version >>
+      - when: 
+          condition: << parameters.custom-npm-login >>
+          steps:
+            - run:
+                name: Fixing node_modules writting access
+                command: sudo chown -R $(whoami) /usr/local/lib/node_modules && sudo chown -R $(whoami) /usr/local/bin/
+            - common/custom-npm-login
+      - common/npm-install
       - run:
-          name: "Install ionic and cordova"
-          command: sudo npm install -g ionic cordova
+          name: Building
+          command: npm run build -- --progress false << parameters.build-params >>
+      - unless:
+          condition: << parameters.skip-tests >>
+          steps:
+            - common/chrome-upgrade
+            - run:
+                name: Running unit tests
+                command: npm run test -- --configuration ci
+            - unless:
+                condition: << parameters.skip-e2e >>
+                steps:
+                  - run:
+                      name: Running e2e tests
+                      command: npm run e2e
+            - store_test_results:
+                path: test-results
+      - unless:
+          condition: << parameters.skip-lint >>
+          steps:
+            - run:
+                name: Running lint
+                command: npx ng lint --force --format=json app > lint-results.json
+      - unless:
+          condition: << parameters.skip-sonar >>
+          steps:
+            - common/sonar
+      - when:
+          condition: << parameters.persist-results >>
+          steps:
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - node_modules
+                  - test-results
+                  - lint-results.json
+                  - coverage
+                  - www
+  pwa:
+    parameters:
+      node-version:
+        type: string
+        default: "12"
+      custom-npm-login:
+        type: boolean
+        default: false
+      build-params:
+        type: string
+        default: "--prod"
+      web-path:
+        type: string
+        default: "www"
+    machine: true
+    environment:
+      NODE_OPTIONS: --max_old_space_size=4096
+    steps:
+      - checkout
       - run:
-          name: "Install npm packages"
-          command: npm install
-      # - persist_to_workspace:
-      #     root: ~/repo
-      #     paths:
-      #       - node_modules
+          name: Upgrading Node to version << parameters.node-version >> using nvm
+          command: echo "source /opt/circleci/.nvm/nvm.sh &>/dev/null && nvm install << parameters.node-version >>" >> ${BASH_ENV}
+      - when: 
+          condition: << parameters.custom-npm-login >>
+          steps:
+            - common/custom-npm-login
+      - common/npm-install
       - run:
-          name: "Install Cordova plugins and add android platform"
-          command: |
-            ionic cordova platform add android --noresources
-            ionic config set -g telemetry true
-      # below code is for android
-      - run:
-          name: "Generate apk"
-          command: |
-            ionic cordova build android --verbose
-            mkdir -p /tmp/apk
-            cp -r platforms/android/app/build/outputs/apk/debug/app-debug.apk /tmp/apk
-      - store_artifacts:
-          path: /tmp/apk
-          destination: apks
-
+          name: Building
+          command: npm run build -- --progress false << parameters.build-params >>
+          no_output_timeout: 20m
+      - persist_to_workspace:
+          root: .
+          paths:
+            - << parameters.web-path >>
   ios:
+    parameters:
+      package-name:
+        type: string
+      team-id:
+        type: string
+      attach-workspace:
+        type: boolean
+        default: false
+      development-provisioning-name:
+        type: string
+      distribution-provisioning-name:
+        type: string
+      development-signing-password:
+        type: string
+        default: ''
+      distribution-signing-password:
+        type: string
+        default: ''
+      cocoapods-lock-path:
+        type: string
+        default: ''
+      cordova-version:
+        type: string
+        default: "8"
+      cocoapods-version:
+        type: string
+        default: "1.7.5"
+      fastlane-version:
+        type: string
+        default: "'>= 0'"
+      xcode-version:
+        type: string
+        default: "11.3.1"
+      node-version:
+        type: string
+        default: "12"
+      dev-certs-repo-url:
+        type: string
+        default: ''
+      dist-certs-repo-url:
+        type: string
+        default: ''
+      ssh-permission-fingerprint:
+        type: string
+        default: ''
+      custom-npm-login:
+        type: boolean
+        default: false
+      update-brew:
+        type: boolean
+        default: false
+      web-path:
+        type: string
+        default: "www"
     macos:
-      xcode: "9.3.0"
-    working_directory: ~/repo
-
-    # use a --login shell so our "set Ruby version" command gets picked up for later steps
-    shell: /bin/bash --login -o pipefail
-
+      xcode: "<< parameters.xcode-version >>"
     steps:
       - checkout
+      - when:
+          condition: << parameters.update-brew >>
+          steps:
+            - run:
+                name: Updating Homebrew
+                command: brew update
+      - when:
+          condition: << parameters.node-version >>
+          steps:
+            - run:
+                name: Installing node version << parameters.node-version >>
+                command: |
+                  brew unlink node
+                  HOMEBREW_NO_AUTO_UPDATE=1 brew install node@<< parameters.node-version >>
+                  brew link --overwrite node@<< parameters.node-version >> --force
+      - when:
+          condition: << parameters.custom-npm-login >>
+          steps:
+            - common/custom-npm-login
+      - common/npm-install
+      - common/install-ios:
+          cordova-version: << parameters.cordova-version >>
+          cocoapods-version: << parameters.cocoapods-version >>
+          fastlane-version: << parameters.fastlane-version >>
+      - common/keychain:
+          package-name: << parameters.package-name >>
+          team-id: << parameters.team-id >>
+          development-provisioning-name: << parameters.development-provisioning-name >>
+          distribution-provisioning-name: << parameters.distribution-provisioning-name >>
+          development-signing-password: << parameters.development-signing-password >>
+          distribution-signing-password: << parameters.distribution-signing-password >>
+          dev-certs-repo-url: << parameters.dev-certs-repo-url >>
+          dist-certs-repo-url: << parameters.dist-certs-repo-url >>
+          ssh-permission-fingerprint: << parameters.ssh-permission-fingerprint >>
+      - when:
+          condition: << parameters.cocoapods-lock-path >>
+          steps:
+            - restore_cache:
+                << : *cache-key-cocoapods
+            - run:
+                name: Installing Cocoapods dependencies
+                command: pod setup
+      - when:
+          condition: << parameters.attach-workspace >>
+          steps:
+            - attach_workspace:
+                at: .
+            - run:
+                name: Clearing sourcemaps
+                command: find << parameters.web-path  >> -name *.map -type f -delete
       - run:
-          name: set Ruby version
-          command:  echo "ruby-2.4" > ~/.ruby-version
-
-      # - restore_cache:
-      #     key: yarn-v1-{{ checksum "yarn.lock" }}-{{ arch }}
-
-      # - restore_cache:
-      #     key: node-v1-{{ checksum "package.json" }}-{{ arch }}
-
-      # not using a workspace here as Node and Yarn versions
-      # differ between our macOS executor image and the Docker containers above
+          name: Building
+          command: scripts/build.sh
+          no_output_timeout: 30m
+      - persist_to_workspace:
+          root: .
+          paths:
+            - output
+      - when:
+          condition: << parameters.cocoapods-lock-path >>
+          steps:
+            - run:
+                name: Restoring << parameters.cocoapods-lock-path >>
+                command: git checkout << parameters.cocoapods-lock-path >>
+            - save_cache:
+                << : *cache-key-cocoapods
+                paths:
+                  - ~/.cocoapods
       - run:
-          name: "Install ionic and cordova"
-          command: |
-            npm install -g ionic cordova
+          name: Deploying
+          command: scripts/deploy.sh
+  android:
+    parameters:
+      attach-workspace:
+        type: boolean
+        default: false
+      cordova-version:
+        type: string
+        default: "8"
+      api-version:
+        type: string
+        default: "28"
+      gradle-version:
+        type: string
+        default: "5.4.1"
+      node-version:
+        type: string
+        default: "12"
+      dist-certs-repo-url:
+        type: string
+        default: ''
+      ssh-permission-fingerprint:
+        type: string
+        default: ''
+      custom-npm-login:
+        type: boolean
+        default: false
+      web-path:
+        type: string
+        default: "www"
+    docker:
+      - image: circleci/android:api-<< parameters.api-version >>-node
+    steps:
+      - checkout
+      - common/node-upgrade:
+          version: << parameters.node-version >>
+      - when:
+          condition: << parameters.custom-npm-login >>
+          steps:
+            - run:
+                name: Logging into custom NPM registry
+                command: sudo npm install -g npm-cli-adduser && npm-cli-adduser
+      - common/npm-install
+      - common/install-android:
+          gradle-version: << parameters.gradle-version >>
+          cordova-version: << parameters.cordova-version >>
+      - restore_cache:
+          << : *cache-key-gradle
+      - when:
+          condition: << parameters.attach-workspace >>
+          steps:
+            - attach_workspace:
+                at: .
+            - run:
+                name: Clearing sourcemaps
+                command: find << parameters.web-path >> -name *.map -type f -delete
+      - common/keystores:
+          dist-certs-repo-url: << parameters.dist-certs-repo-url >>
+          ssh-permission-fingerprint: << parameters.ssh-permission-fingerprint >>
       - run:
-          name: "Install npm packages"
-          command: |
-            npm install
+          name: Building
+          command: scripts/build.sh
+          no_output_timeout: 30m
+      - persist_to_workspace:
+          root: .
+          paths:
+            - output
       - run:
-          name: "Add ios platform using ionic"
-          command: |
-            ionic cordova platform add ios --noresources
-            ionic config set -g telemetry true
-      # - save_cache:
-      #     key: yarn-v1-{{ checksum "yarn.lock" }}-{{ arch }}
-      #     paths:
-      #       - ~/.cache/yarn
-
-      # - save_cache:
-      #     key: node-v1-{{ checksum "package.json" }}-{{ arch }}
-      #     paths:
-      #       - node_modules
-
-      # - restore_cache:
-      #     key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-
+          name: Restoring package-lock.json
+          command: git checkout package-lock.json
+      - save_cache:
+          << : *cache-key-gradle
+          paths:
+            - ~/.gradle/caches
       - run:
-          command: bundle install
-          #working_directory: ios
-
-      # - save_cache:
-      #     key: bundle-v1-{{ checksum "ios/Gemfile.lock" }}-{{ arch }}
-      #     paths:
-      #       - vendor/bundle
-
-      - run:
-          #command: fastlane build_debug
-          command: |
-            bundle exec fastlane build_debug
-            mkdir -p /tmp/ios
-            cp platforms/ios/build/device/ionicJenkins.ipa /tmp/ios
-          #working_directory: ios
-
-      - store_artifacts:
-          path: /tmp/ios
-          destination: ios
-      # - run:
-      #     name: "Upload to Diawi"
-      #     command: |
-      #       export APP_FILE_PATH=/tmp/ios/ionicJenkins.ipa
-      #       export PLATFORM=IOS
-      #       node ./.circleci/upload-to-diawi.js
-      # - run:
-      #     name: set up test results
-      #     working_directory: ios
-      #     when: always
-      #     command: |
-      #       mkdir -p test-results/fastlane test-results/xcode
-      #       mv fastlane/report.xml test-results/fastlane
-      #       mv fastlane/test_output/report.junit test-results/xcode/junit.xml
-      # - store_test_results:
-      #     path: ios/test-results
-
-      # - store_artifacts:
-      #     path: ios/test-results
-
-workflows:
-  build_and_deploy:
-    jobs:
-      - android
+          name: Deploying
+          command: scripts/deploy.sh
