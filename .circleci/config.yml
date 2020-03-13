@@ -18,6 +18,17 @@ jobs:
             echo 'export GRADLE_HOME=/opt/gradle/gradle-5.2.1' >> $BASH_ENV
             echo 'export PATH=$PATH:/opt/gradle/gradle-5.2.1/bin' >> $BASH_ENV
             source $BASH_ENV
+      - run: 
+          name: "Install Android SDK"
+          command: |
+            wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -P /tmp
+            unzip sdk-tools-linux-4333796.zip
+            rm sdk-tools-linux-4333796.zip
+            mkdir android-sdk
+            mv tools android-sdk/tools
+            export ANDROID_HOME=$HOME/android-sdk
+            export PATH=$PATH:$ANDROID_HOME/tools/bin
+            export PATH=$PATH:$ANDROID_HOME/platform-tools
       - run:
           name: "Install ionic and cordova"
           command: npm install -g ionic cordova
