@@ -16,7 +16,7 @@ pipeline {
 
         stage('Android Build') {
             steps {
-                sh 'ionic cordova build android --prod --no-confirm=true'
+                sh 'ionic cordova build android --prod --no-confirm=true --gradleArg=--no-daemon'
                 
             }
         }
