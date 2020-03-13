@@ -22,8 +22,8 @@ jobs:
           command: |
             wget https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -P /tmp
             sudo unzip /tmp/sdk-tools-linux-4333796.zip
-            mkdir android-sdk
-            mv tools android-sdk/tools
+            sudo mkdir android-sdk
+            sudo mv tools android-sdk/tools
             export ANDROID_HOME=$HOME/android-sdk
             export PATH=$PATH:$ANDROID_HOME/tools/bin
             export PATH=$PATH:$ANDROID_HOME/platform-tools
