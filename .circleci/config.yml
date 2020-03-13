@@ -6,6 +6,10 @@ jobs:
     executor:
       name: node/default
     working_directory: ~/repo
+    machine:
+      ANDROID_TARGET: android-23
+      ADB_INSTALL_TIMEOUT: 12
+      ANDROID_HOME: /usr/local/android-sdk-linux
     steps:
       - checkout
       - run: 
@@ -19,6 +23,18 @@ jobs:
       - run:
           name: "Install ionic and cordova"
           command: sudo npm install -g ionic cordova
+        
+      - run:
+          name: print ANDROID_HOME
+          command: |
+            echo ANDROID_HOME: ${ANDROID_HOME}
+      - run:
+          name: print PATH
+          command: |
+            echo PATH: ${PATH}
+      - run:
+          name: export
+          command: export PATH=${PATH}:$ANDROID_HOME/tools:${PATH}:$ANDROID_HOME:$ANDROID_HOME/platform-tools
       - run:
           name: "Install npm packages"
           command: npm install
