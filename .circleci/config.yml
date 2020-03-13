@@ -14,13 +14,13 @@ jobs:
           name: "Install gradle"
           command: |
             wget https://services.gradle.org/distributions/gradle-5.2.1-bin.zip -P /tmp
-            sudo unzip -d /opt/gradle /tmp/gradle-*.zip
+            unzip -d /opt/gradle /tmp/gradle-*.zip
             echo 'export GRADLE_HOME=/opt/gradle/gradle-5.2.1' >> $BASH_ENV
             echo 'export PATH=$PATH:/opt/gradle/gradle-5.2.1/bin' >> $BASH_ENV
             source $BASH_ENV
       - run:
           name: "Install ionic and cordova"
-          command: sudo npm install -g ionic cordova
+          command: npm install -g ionic cordova
       - run:
           name: "Install npm packages"
           command: npm install
