@@ -3,6 +3,8 @@ orbs:
   node: circleci/node@1.1.6
 jobs:
   android:
+    docker:
+      - image: beevelop/ionic
     executor:
       name: node/default
     working_directory: ~/repo
@@ -133,5 +135,4 @@ jobs:
 workflows:
   build_and_deploy:
     jobs:
-      - ios
       - android
