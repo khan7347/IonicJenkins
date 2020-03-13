@@ -14,16 +14,16 @@ pipeline {
             }
         }
 
-        stage('Android Build') {
+        stage('IOS Build') {
             steps {
-                sh 'ionic cordova build android --prod --no-confirm=true --gradleArg=--no-daemon'
+                sh 'ionic cordova build ios --prod --no-confirm=true'
                 
             }
         }
 
-        stage('IOS Build') {
+        stage('Android Build') {
             steps {
-                sh 'ionic cordova build ios --prod --no-confirm=true'
+                sh 'ionic cordova build android --prod --no-confirm=true --gradleArg=--no-daemon'
                 
             }
         }
